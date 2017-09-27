@@ -1,6 +1,10 @@
 'use strict'
 
-var MODULE_NAME_PATTERN = /(^|\/)format-message$/
+var envModuleNamePattern =
+  process.env.MODULE_NAME_PATTERN &&
+  new RegExp(process.env.MODULE_NAME_PATTERN);
+
+var MODULE_NAME_PATTERN = envModuleNamePattern || /(^|\/)format-message$/;
 
 exports = module.exports = {
   setBabelContext: function (path, state) {
