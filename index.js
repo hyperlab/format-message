@@ -92,7 +92,8 @@ exports = module.exports = {
   isRequireFormatMessage: function (node) {
     var arg
     return (
-      node.type === 'CallExpression' &&
+      node && node.type === 'CallExpression' &&
+      node.callee &&
       node.callee.type === 'Identifier' &&
       node.callee.name === 'require' &&
       !!(arg = node.arguments[0]) &&
@@ -104,7 +105,7 @@ exports = module.exports = {
   isFormatMessage: function (node) {
     if (node.type !== 'Identifier') return false
     var binding = this.getBinding(node)
-    if (!binding) return false
+    if (!binding || !binding.node) return false
 
     return (
       this.isImportFormatMessage(binding) ||
@@ -115,6 +116,11 @@ exports = module.exports = {
         this.isRequireFormatMessage(binding.node.init)
       )
     )
+  },
+
+  isRichMessage: function (node) {
+    var name = this.getFormatMessagePropertyName(node)
+    if (name === 'rich') return name
   },
 
   isStringish: function (node) {
@@ -204,6 +210,11 @@ exports = module.exports = {
   },
 
   getHelperFunctionName: function (node) {
+    var name = this.getFormatMessagePropertyName(node)
+    if (this.isHelperName(name)) return name
+  },
+
+  getFormatMessagePropertyName: function (node) {
     var binding
     var name
     var isImportedCall = (
@@ -219,8 +230,7 @@ exports = module.exports = {
       node.type === 'MemberExpression' &&
       this.isFormatMessage(node.object) &&
       node.property.type === 'Identifier' &&
-      (name = node.property.name) &&
-      this.isHelperName(name)
+      (name = node.property.name)
     )
     if (isMemberCall) return name
   },
@@ -233,10 +243,10 @@ exports = module.exports = {
     var name
     var isImportHelper = (
       (
+        node &&
         node.type === 'ImportSpecifier' &&
         node.imported.type === 'Identifier' &&
-        (name = node.imported.name) &&
-        this.isHelperName(name)
+        (name = node.imported.name)
       ) &&
       this.isStringLiteral(parent.source) &&
       MODULE_NAME_PATTERN.test(parent.source.value)
@@ -247,20 +257,21 @@ exports = module.exports = {
   getRequireHelper: function (node, referenceName) {
     var name
     var isMemberRequire = (
+      node &&
       node.type === 'VariableDeclarator' &&
-      node.id.type === 'Identifier' &&
-      node.init.type === 'MemberExpression' &&
+      node.id && node.id.type === 'Identifier' &&
+      node.init && node.init.type === 'MemberExpression' &&
       this.isRequireFormatMessage(node.init.object) &&
       node.init.property.type === 'Identifier' &&
-      (name = node.init.property.name) &&
-      this.isHelperName(name)
+      (name = node.init.property.name)
     )
     if (isMemberRequire) return name
 
     var isDestructureRequire = (
+      node &&
       node.type === 'VariableDeclarator' &&
       this.isRequireFormatMessage(node.init) &&
-      node.id.type === 'ObjectPattern' &&
+      node.id && node.id.type === 'ObjectPattern' &&
       node.id.properties.some(function (property) {
         var isAHelper = (
           property.key.type === 'Identifier' &&
